@@ -36,9 +36,15 @@ const getAllFlores = async (req, res) => {
     if (floristeriaId) {
       query.floristeria = floristeriaId;
     } else if (dominio) {
-      console.log('�� Buscando floristería con dominio:', dominio);
+      console.log(' Buscando floristería con dominio:', dominio);
+      console.log(' Dominio normalizado:', String(dominio).toLowerCase());
+      
+      // Buscar TODAS las floristerías para debug
+      const todasLasFloristerias = await Floristeria.find({});
+      console.log(' Todas las floristerías en la BD:', todasLasFloristerias.map(f => ({ id: f._id, dominio: f.dominio })));
+      
       const f = await Floristeria.findOne({ dominio: String(dominio).toLowerCase() });
-      console.log('�� Floristería encontrada:', f ? f._id : 'NO ENCONTRADA');
+      console.log(' Floristería encontrada:', f ? f._id : 'NO ENCONTRADA');
       if (!f) return res.json([]); // si no hay floristería para ese dominio: 0 productos
       query.floristeria = f._id;
     }
@@ -125,7 +131,7 @@ const updateFlor = async (req, res) => {
 const deleteFlor = async (req, res) => {
   try {
     const florEliminada = await Flor.findByIdAndDelete(req.params.id);
-    if (!florEliminada) return res.status(404).json({ message: 'Flor no encontrada' });
+    if (!florEliminada) return res.status(404).json({ message: 'Flor eliminada correctamente' });
     res.json({ message: 'Flor eliminada correctamente' });
   } catch (error) {
     res.status(500).json({ message: error.message });
