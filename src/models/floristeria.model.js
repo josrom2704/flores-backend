@@ -38,14 +38,15 @@ const FloristeriaSchema = new mongoose.Schema(
 );
 
 // Autocompletar dominio desde url cuando aplique
-FloristeriaSchema.pre('validate', function (next) {
-  if (!this.dominio && this.url) {
-    this.dominio = extraerDominio(this.url);
-  }
-  if (this.dominio) this.dominio = this.dominio.trim().toLowerCase();
-  next();
-});
 
+// Comentar temporalmente este middleware
+// FloristeriaSchema.pre('validate', function (next) {
+//   if (!this.dominio && this.url) {
+//     this.dominio = extraerDominio(this.url);
+//   }
+//   if (this.dominio) this.dominio = this.dominio.trim().toLowerCase();
+//   next();
+// });
 FloristeriaSchema.index({ dominio: 1 });
 
 module.exports = mongoose.model('Floristeria', FloristeriaSchema);
