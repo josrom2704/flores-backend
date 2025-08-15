@@ -32,6 +32,9 @@ const getAllFlores = async (req, res) => {
     console.log(' URI de conexión:', process.env.MONGODB_URI);
     console.log(' Base de datos actual:', mongoose.connection.db.databaseName);
     console.log(' Colecciones disponibles:', await mongoose.connection.db.listCollections().toArray());
+    console.log('🔍 Modelo Flor - Nombre:', Flor.modelName);
+    console.log('�� Modelo Flor - Colección:', Flor.collection.name);
+    console.log('�� Modelo Flor - Base de datos:', Flor.db.name);
     const { floristeriaId, dominio, categoria } = req.query;
     const query = {};
 
