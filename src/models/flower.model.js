@@ -56,4 +56,4 @@ const FlowerSchema = new mongoose.Schema(
   }
 );
 
-module.exports = mongoose.model('Flor', FlowerSchema);
+module.exports = mongoose.model('Flor', FlowerSchema, 'flores'); // ✅ AGREGADO: 'flores' como tercer parámetro
