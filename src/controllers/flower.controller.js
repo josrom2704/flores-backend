@@ -27,6 +27,10 @@ function slugify(str = '') {
  */
 const getAllFlores = async (req, res) => {
   try {
+    console.log('🔍 Conectando a MongoDB...');
+    console.log(' URI de conexión:', process.env.MONGODB_URI);
+    console.log(' Base de datos actual:', mongoose.connection.db.databaseName);
+    console.log(' Colecciones disponibles:', await mongoose.connection.db.listCollections().toArray());
     const { floristeriaId, dominio, categoria } = req.query;
     const query = {};
 
