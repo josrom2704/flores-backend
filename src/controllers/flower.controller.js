@@ -39,14 +39,18 @@ const getAllFlores = async (req, res) => {
       console.log(' Buscando floristería con dominio:', dominio);
       console.log(' Dominio normalizado:', String(dominio).toLowerCase());
       
-      // Buscar TODAS las floristerías para debug
-      const todasLasFloristerias = await Floristeria.find({});
-      console.log(' Todas las floristerías en la BD:', todasLasFloristerias.map(f => ({ id: f._id, dominio: f.dominio })));
+      // SOLUCIÓN TEMPORAL: Usar el ID directo de la floristería
+      const floristeriaId = "689e789a68a6fc4b4b9f4e8b";
+      console.log(' Usando ID directo de floristería:', floristeriaId);
+      query.floristeria = floristeriaId;
       
-      const f = await Floristeria.findOne({ dominio: String(dominio).toLowerCase() });
-      console.log(' Floristería encontrada:', f ? f._id : 'NO ENCONTRADA');
-      if (!f) return res.json([]); // si no hay floristería para ese dominio: 0 productos
-      query.floristeria = f._id;
+      // Comentar la búsqueda por dominio (temporalmente)
+      // const todasLasFloristerias = await Floristeria.find({});
+      // console.log(' Todas las floristerías en la BD:', todasLasFloristerias.map(f => ({ id: f._id, dominio: f.dominio })));
+      // const f = await Floristeria.findOne({ dominio: String(dominio).toLowerCase() });
+      // console.log(' Floristería encontrada:', f ? f._id : 'NO ENCONTRADA');
+      // if (!f) return res.json([]);
+      // query.floristeria = f._id;
     }
 
     console.log('🔍 Query final:', JSON.stringify(query));
@@ -146,4 +150,4 @@ module.exports = {
   createFlor,
   updateFlor,
   deleteFlor
-};
+ };
