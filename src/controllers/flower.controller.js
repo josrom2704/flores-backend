@@ -55,8 +55,18 @@ const getAllFlores = async (req, res) => {
 
     console.log('🔍 Query final:', JSON.stringify(query));
 
+    // 🔍 LOGS DE DEBUG AGREGADOS:
+    // Buscar TODOS los productos para debug
+    const todosLosProductos = await Flor.find({});
+    console.log('🔍 TODOS los productos en la BD:', todosLosProductos.map(f => ({ 
+      id: f._id, 
+      nombre: f.nombre, 
+      floristeria: f.floristeria,
+      tipoFloristeria: typeof f.floristeria 
+    })));
+
     const flores = await Flor.find(query);
-    console.log('🔍 Productos encontrados:', flores.length);
+    console.log('🔍 Productos encontrados con query:', flores.length);
     
     res.json(flores);
   } catch (error) {
@@ -150,4 +160,4 @@ module.exports = {
   createFlor,
   updateFlor,
   deleteFlor
- };
+};
