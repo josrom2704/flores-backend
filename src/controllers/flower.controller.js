@@ -1,5 +1,6 @@
 // src/controllers/flower.controller.js
 const path = require('path');
+const mongoose = require('mongoose');
 const Flor = require('../models/flower.model');
 const Floristeria = require('../models/floristeria.model');
 
