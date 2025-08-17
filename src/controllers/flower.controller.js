@@ -23,7 +23,7 @@ function slugify(str = '') {
  * GET /api/flores
  * Filtros:
  *  - ?floristeriaId=<ObjectId>
- *  - ?dominio=<host> (p.ej. localhost o canastasnavidenas.vercel.app)
+ *  - ?url=<host> (p.ej. tienda-navidenau.vercel.app)
  *  - ?categoria=<slug|nombre> (match flexible: slug o nombre, insensible a mayús/min)
  */
 const getAllFlores = async (req, res) => {
@@ -35,30 +35,37 @@ const getAllFlores = async (req, res) => {
     console.log('🔍 Modelo Flor - Nombre:', Flor.modelName);
     console.log('�� Modelo Flor - Colección:', Flor.collection.name);
     console.log('�� Modelo Flor - Base de datos:', Flor.db.name);
-    const { floristeriaId, dominio, categoria } = req.query;
+    
+    const { floristeriaId, url, categoria } = req.query;
     const query = {};
 
-    console.log('🔍 getAllFlores - Query params:', { floristeriaId, dominio, categoria });
+    console.log('🔍 getAllFlores - Query params:', { floristeriaId, url, categoria });
 
     // Resuelve floristería
     if (floristeriaId) {
       query.floristeria = floristeriaId;
-    } else if (dominio) {
-      console.log(' Buscando floristería con dominio:', dominio);
-      console.log(' Dominio normalizado:', String(dominio).toLowerCase());
+    } else if (url) {
+      console.log(' Buscando floristería con URL:', url);
+      console.log(' URL normalizada:', String(url).toLowerCase());
       
-      // SOLUCIÓN TEMPORAL: Usar el ID directo de la floristería
-      const floristeriaId = "689e789a68a6fc4b4b9f4e8b";
-      console.log(' Usando ID directo de floristería:', floristeriaId);
-      query.floristeria = floristeriaId;
+      // Buscar por campo 'url' en lugar de 'dominio'
+      const todasLasFloristerias = await Floristeria.find({});
+      console.log(' Todas las floristerías en la BD:', todasLasFloristerias.map(f => ({ 
+        id: f._id, 
+        nombre: f.nombre, 
+        url: f.url 
+      })));
       
-      // Comentar la búsqueda por dominio (temporalmente)
-      // const todasLasFloristerias = await Floristeria.find({});
-      // console.log(' Todas las floristerías en la BD:', todasLasFloristerias.map(f => ({ id: f._id, dominio: f.dominio })));
-      // const f = await Floristeria.findOne({ dominio: String(dominio).toLowerCase() });
-      // console.log(' Floristería encontrada:', f ? f._id : 'NO ENCONTRADA');
-      // if (!f) return res.json([]);
-      // query.floristeria = f._id;
+      const f = await Floristeria.findOne({ url: String(url).toLowerCase() });
+      console.log(' Floristería encontrada:', f ? f._id : 'NO ENCONTRADA');
+      
+      if (!f) {
+        console.log('❌ No se encontró floristería para URL:', url);
+        return res.json([]);
+      }
+      
+      query.floristeria = f._id;
+      console.log('✅ Floristería encontrada, ID:', f._id);
     }
 
     console.log('🔍 Query final:', JSON.stringify(query));
@@ -145,15 +152,19 @@ const updateFlor = async (req, res) => {
     if (!florActualizada) return res.status(404).json({ message: 'Flor no encontrada' });
     res.json(florActualizada);
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    res.status(500).json({ message: error.message });
   }
 };
 
 // DELETE /api/flores/:id
 const deleteFlor = async (req, res) => {
   try {
-    const florEliminada = await Flor.findByIdAndDelete(req.params.id);
-    if (!florEliminada) return res.status(404).json({ message: 'Flor eliminada correctamente' });
+    const florEliminada = await Flor.findByIdAndUpdate(req.params.id, { activo: false }, {
+      new: true,
+      runValidators: true,
+    });
+    
+    if (!florEliminada) return res.status(404).json({ message: 'Flor no encontrada' });
     res.json({ message: 'Flor eliminada correctamente' });
   } catch (error) {
     res.status(500).json({ message: error.message });
