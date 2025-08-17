@@ -26,15 +26,15 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Servir archivos estáticos de la carpeta uploads
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+// ❌ ELIMINADO: app.use('/uploads', express.static(...));
+// ✅ Las imágenes se servirán desde Cloudinary
 
 // Rutas
 app.use('/api/flores', flowerRoutes);
 app.use('/api/floristerias', floristeriaRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/auth', authRoutes);
-app.use('/api/categorias', categoriaRoutes); // ← ya después de crear app
+app.use('/api/categorias', categoriaRoutes);
 app.use('/health', healthRoutes);
 
 // Documentación Swagger
@@ -49,6 +49,7 @@ app.get('/', (req, res) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Servidor escuchando en puerto ${PORT}`);
-  console.log(`📱 Entorno: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🌍 Entorno: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🌐 URL: http://localhost:${PORT}`);
+  console.log(`☁️ Cloudinary configurado para: ${process.env.CLOUDINARY_CLOUD_NAME}`);
 });

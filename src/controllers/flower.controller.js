@@ -1,8 +1,10 @@
 // src/controllers/flower.controller.js
 const path = require('path');
 const mongoose = require('mongoose');
+const fs = require('fs');
 const Flor = require('../models/flower.model');
 const Floristeria = require('../models/floristeria.model');
+const cloudinary = require('../config/cloudinary');
 
 /** Normaliza rutas de archivo (Windows \ -> /) */
 function normalizeFilePath(p) {
@@ -14,17 +16,53 @@ function normalizeFilePath(p) {
 function slugify(str = '') {
   return String(str)
     .toLowerCase()
-    .normalize('NFD').replace(/\p{Diacritic}/gu, '') // quita acentos
+    .normalize('NFD').replace(/\p{Diacritic}/gu, '')
     .replace(/\s+/g, '-')
     .replace(/[^a-z0-9-]/g, '');
 }
 
 /**
+ * Función auxiliar para subir imagen a Cloudinary
+ */
+async function uploadToCloudinary(filePath, folder = 'tienda-flores') {
+  try {
+    console.log('☁️ Subiendo imagen a Cloudinary...');
+    console.log('📁 Archivo:', filePath);
+    
+    const result = await cloudinary.uploader.upload(filePath, {
+      folder: folder,
+      transformation: [
+        { width: 800, height: 600, crop: 'limit' },
+        { quality: 'auto' }
+      ]
+    });
+    
+    console.log('✅ Imagen subida exitosamente');
+    console.log('🔗 URL:', result.secure_url);
+    
+    return result.secure_url;
+  } catch (error) {
+    console.error('❌ Error subiendo a Cloudinary:', error);
+    throw error;
+  }
+}
+
+/**
+ * Función auxiliar para limpiar archivo temporal
+ */
+function cleanupTempFile(filePath) {
+  try {
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+      console.log('🗑️ Archivo temporal eliminado:', filePath);
+    }
+  } catch (error) {
+    console.error('⚠️ Error eliminando archivo temporal:', error);
+  }
+}
+
+/**
  * GET /api/flores
- * Filtros:
- *  - ?floristeriaId=<ObjectId>
- *  - ?url=<host> (p.ej. tienda-navidenau.vercel.app)
- *  - ?categoria=<slug|nombre> (match flexible: slug o nombre, insensible a mayús/min)
  */
 const getAllFlores = async (req, res) => {
   try {
@@ -33,8 +71,8 @@ const getAllFlores = async (req, res) => {
     console.log(' Base de datos actual:', mongoose.connection.db.databaseName);
     console.log(' Colecciones disponibles:', await mongoose.connection.db.listCollections().toArray());
     console.log('🔍 Modelo Flor - Nombre:', Flor.modelName);
-    console.log('�� Modelo Flor - Colección:', Flor.collection.name);
-    console.log('�� Modelo Flor - Base de datos:', Flor.db.name);
+    console.log('🔍 Modelo Flor - Colección:', Flor.collection.name);
+    console.log('🔍 Modelo Flor - Base de datos:', Flor.db.name);
     
     const { floristeriaId, url, categoria } = req.query;
     const query = {};
@@ -48,7 +86,6 @@ const getAllFlores = async (req, res) => {
       console.log(' Buscando floristería con URL:', url);
       console.log(' URL normalizada:', String(url).toLowerCase());
       
-      // Buscar por campo 'url' en lugar de 'dominio'
       const todasLasFloristerias = await Floristeria.find({});
       console.log(' Todas las floristerías en la BD:', todasLasFloristerias.map(f => ({ 
         id: f._id, 
@@ -70,8 +107,6 @@ const getAllFlores = async (req, res) => {
 
     console.log('🔍 Query final:', JSON.stringify(query));
 
-    // 🔍 LOGS DE DEBUG AGREGADOS:
-    // Buscar TODOS los productos para debug
     const todosLosProductos = await Flor.find({});
     console.log('🔍 TODOS los productos en la BD:', todosLosProductos.map(f => ({ 
       id: f._id, 
@@ -120,6 +155,25 @@ const createFlor = async (req, res) => {
       return res.status(400).json({ message: 'El campo "floristeria" es obligatorio' });
     }
 
+    let imagenUrl = undefined;
+    
+    // ✅ NUEVA LÓGICA: Subir imagen a Cloudinary si existe
+    if (req.file) {
+      try {
+        imagenUrl = await uploadToCloudinary(req.file.path);
+        console.log('✅ Imagen procesada y subida a Cloudinary');
+      } catch (uploadError) {
+        console.error('❌ Error procesando imagen:', uploadError);
+        return res.status(500).json({ 
+          message: 'Error al procesar la imagen',
+          error: uploadError.message 
+        });
+      } finally {
+        // Limpiar archivo temporal
+        cleanupTempFile(req.file.path);
+      }
+    }
+
     const nuevaFlor = new Flor({
       nombre,
       descripcion,
@@ -127,12 +181,14 @@ const createFlor = async (req, res) => {
       stock,
       categoria,
       floristeria,
-      imagen: req.file ? normalizeFilePath(req.file.path) : undefined,
+      imagen: imagenUrl, // ✅ Ahora guarda URL de Cloudinary
     });
 
     const florGuardada = await nuevaFlor.save();
+    console.log('✅ Flor creada exitosamente con imagen:', imagenUrl ? 'Sí' : 'No');
     res.status(201).json(florGuardada);
   } catch (error) {
+    console.error('❌ Error creando flor:', error);
     res.status(400).json({ message: error.message });
   }
 };
@@ -142,7 +198,24 @@ const updateFlor = async (req, res) => {
   try {
     const updates = { ...req.body };
     if (updates.precio !== undefined) updates.precio = Number(updates.precio);
-    if (req.file) updates.imagen = normalizeFilePath(req.file.path);
+    
+    // ✅ NUEVA LÓGICA: Manejar imagen en actualización
+    if (req.file) {
+      try {
+        imagenUrl = await uploadToCloudinary(req.file.path);
+        updates.imagen = imagenUrl;
+        console.log('✅ Imagen actualizada en Cloudinary');
+      } catch (uploadError) {
+        console.error('❌ Error actualizando imagen:', uploadError);
+        return res.status(500).json({ 
+          message: 'Error al procesar la imagen',
+          error: uploadError.message 
+        });
+      } finally {
+        // Limpiar archivo temporal
+        cleanupTempFile(req.file.path);
+      }
+    }
 
     const florActualizada = await Flor.findByIdAndUpdate(req.params.id, updates, {
       new: true,
@@ -152,6 +225,7 @@ const updateFlor = async (req, res) => {
     if (!florActualizada) return res.status(404).json({ message: 'Flor no encontrada' });
     res.json(florActualizada);
   } catch (error) {
+    console.error('❌ Error actualizando flor:', error);
     res.status(500).json({ message: error.message });
   }
 };
