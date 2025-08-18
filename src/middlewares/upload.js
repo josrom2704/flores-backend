@@ -1,21 +1,24 @@
+// src/middlewares/upload.js
 const multer = require('multer');
-const path = require('path');
 
 /**
- * Configuración de Multer para almacenamiento de imágenes.
- * Las imágenes se almacenan en la carpeta `uploads/` en la raíz del proyecto.
- * El nombre del archivo se genera con un sufijo único para evitar colisiones.
+ * Configuración de Multer para procesamiento de imágenes en memoria.
+ * Las imágenes se procesan en memoria y se envían directamente a Cloudinary.
+ * NO se guardan localmente en el servidor.
  */
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, 'uploads/');
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB máximo
   },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
+  fileFilter: (req, file, cb) => {
+    // Solo permitir imágenes
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Solo se permiten archivos de imagen'), false);
+    }
   }
 });
-
-const upload = multer({ storage });
 
 module.exports = upload;
