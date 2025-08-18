@@ -237,20 +237,37 @@ const updateFlor = async (req, res) => {
 };
 
 // DELETE /api/flores/:id
+// DELETE /api/flores/:id
 const deleteFlor = async (req, res) => {
   try {
-    const florEliminada = await Flor.findByIdAndUpdate(req.params.id, { activo: false }, {
-      new: true,
-      runValidators: true,
-    });
+    console.log('🗑️ Intentando eliminar producto:', req.params.id);
     
-    if (!florEliminada) return res.status(404).json({ message: 'Flor no encontrada' });
-    res.json({ message: 'Flor eliminada correctamente' });
+    // ✅ ELIMINACIÓN REAL: Usar findByIdAndDelete
+    const florEliminada = await Flor.findByIdAndDelete(req.params.id);
+    
+    if (!florEliminada) {
+      console.log('❌ Producto no encontrado');
+      return res.status(404).json({ message: 'Flor no encontrada' });
+    }
+    
+    console.log('✅ Producto eliminado realmente:', florEliminada._id);
+    console.log('✅ Nombre del producto eliminado:', florEliminada.nombre);
+    
+    res.json({ 
+      message: 'Flor eliminada correctamente',
+      deletedProduct: {
+        id: florEliminada._id,
+        nombre: florEliminada.nombre
+      }
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('❌ Error eliminando flor:', error);
+    res.status(500).json({ 
+      message: 'Error al eliminar el producto',
+      error: error.message 
+    });
   }
 };
-
 // Exportar todas las funciones
 module.exports = {
   getAllFlores,
