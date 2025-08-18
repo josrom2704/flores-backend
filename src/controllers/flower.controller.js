@@ -23,24 +23,36 @@ function slugify(str = '') {
 
 /**
  * Función auxiliar para subir imagen a Cloudinary
+ * ✅ CORREGIDA: Ahora funciona con memoryStorage (buffer)
  */
-async function uploadToCloudinary(filePath, folder = 'tienda-flores') {
+async function uploadToCloudinary(fileBuffer, folder = 'tienda-flores') {
   try {
     console.log('☁️ Subiendo imagen a Cloudinary...');
-    console.log('📁 Archivo:', filePath);
+    console.log('📁 Tamaño del buffer:', fileBuffer.length, 'bytes');
     
-    const result = await cloudinary.uploader.upload(filePath, {
-      folder: folder,
-      transformation: [
-        { width: 800, height: 600, crop: 'limit' },
-        { quality: 'auto' }
-      ]
+    return new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder: folder,
+          transformation: [
+            { width: 800, height: 600, crop: 'limit' },
+            { quality: 'auto' }
+          ]
+        },
+        (error, result) => {
+          if (error) {
+            console.error('❌ Error subiendo a Cloudinary:', error);
+            reject(error);
+          } else {
+            console.log('✅ Imagen subida exitosamente');
+            console.log('🔗 URL:', result.secure_url);
+            resolve(result.secure_url);
+          }
+        }
+      );
+      
+      uploadStream.end(fileBuffer);
     });
-    
-    console.log('✅ Imagen subida exitosamente');
-    console.log('🔗 URL:', result.secure_url);
-    
-    return result.secure_url;
   } catch (error) {
     console.error('❌ Error subiendo a Cloudinary:', error);
     throw error;
@@ -49,16 +61,12 @@ async function uploadToCloudinary(filePath, folder = 'tienda-flores') {
 
 /**
  * Función auxiliar para limpiar archivo temporal
+ * ✅ CORREGIDA: Ya no es necesaria con memoryStorage
  */
 function cleanupTempFile(filePath) {
-  try {
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-      console.log('🗑️ Archivo temporal eliminado:', filePath);
-    }
-  } catch (error) {
-    console.error('⚠️ Error eliminando archivo temporal:', error);
-  }
+  // ✅ Ya no es necesaria con memoryStorage
+  // Los archivos se procesan en memoria y se eliminan automáticamente
+  console.log('ℹ️ No es necesario limpiar archivos temporales con memoryStorage');
 }
 
 /**
@@ -71,8 +79,8 @@ const getAllFlores = async (req, res) => {
     console.log(' Base de datos actual:', mongoose.connection.db.databaseName);
     console.log(' Colecciones disponibles:', await mongoose.connection.db.listCollections().toArray());
     console.log('🔍 Modelo Flor - Nombre:', Flor.modelName);
-    console.log('🔍 Modelo Flor - Colección:', Flor.collection.name);
-    console.log('🔍 Modelo Flor - Base de datos:', Flor.db.name);
+    console.log('�� Modelo Flor - Colección:', Flor.collection.name);
+    console.log('�� Modelo Flor - Base de datos:', Flor.db.name);
     
     const { floristeriaId, url, categoria } = req.query;
     const query = {};
@@ -157,10 +165,11 @@ const createFlor = async (req, res) => {
 
     let imagenUrl = undefined;
     
-    // ✅ NUEVA LÓGICA: Subir imagen a Cloudinary si existe
+    // ✅ CORREGIDA: Subir imagen a Cloudinary si existe
     if (req.file) {
       try {
-        imagenUrl = await uploadToCloudinary(req.file.path);
+        // ✅ CAMBIO: Usar req.file.buffer en lugar de req.file.path
+        imagenUrl = await uploadToCloudinary(req.file.buffer);
         console.log('✅ Imagen procesada y subida a Cloudinary');
       } catch (uploadError) {
         console.error('❌ Error procesando imagen:', uploadError);
@@ -168,10 +177,8 @@ const createFlor = async (req, res) => {
           message: 'Error al procesar la imagen',
           error: uploadError.message 
         });
-      } finally {
-        // Limpiar archivo temporal
-        cleanupTempFile(req.file.path);
       }
+      // ✅ Ya no es necesario limpiar archivos temporales
     }
 
     const nuevaFlor = new Flor({
@@ -199,10 +206,11 @@ const updateFlor = async (req, res) => {
     const updates = { ...req.body };
     if (updates.precio !== undefined) updates.precio = Number(updates.precio);
     
-    // ✅ NUEVA LÓGICA: Manejar imagen en actualización
+    // ✅ CORREGIDA: Manejar imagen en actualización
     if (req.file) {
       try {
-        imagenUrl = await uploadToCloudinary(req.file.path);
+        // ✅ CAMBIO: Usar req.file.buffer en lugar de req.file.path
+        const imagenUrl = await uploadToCloudinary(req.file.buffer);
         updates.imagen = imagenUrl;
         console.log('✅ Imagen actualizada en Cloudinary');
       } catch (uploadError) {
@@ -211,10 +219,8 @@ const updateFlor = async (req, res) => {
           message: 'Error al procesar la imagen',
           error: uploadError.message 
         });
-      } finally {
-        // Limpiar archivo temporal
-        cleanupTempFile(req.file.path);
       }
+      // ✅ Ya no es necesario limpiar archivos temporales
     }
 
     const florActualizada = await Flor.findByIdAndUpdate(req.params.id, updates, {
