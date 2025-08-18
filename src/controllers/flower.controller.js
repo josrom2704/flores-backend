@@ -98,10 +98,18 @@ const getAllFlores = async (req, res) => {
       console.log(' Todas las floristerías en la BD:', todasLasFloristerias.map(f => ({ 
         id: f._id, 
         nombre: f.nombre, 
-        url: f.url 
+        url: f.url,
+        dominio: f.dominio  // ✅ AGREGADO: Mostrar también el campo dominio
       })));
       
-      const f = await Floristeria.findOne({ url: String(url).toLowerCase() });
+      // ✅ CORREGIDO: Buscar en 'url' O 'dominio' para mayor compatibilidad
+      const f = await Floristeria.findOne({
+        $or: [
+          { url: String(url).toLowerCase() },
+          { dominio: String(url).toLowerCase() }
+        ]
+      });
+      
       console.log(' Floristería encontrada:', f ? f._id : 'NO ENCONTRADA');
       
       if (!f) {
@@ -111,6 +119,12 @@ const getAllFlores = async (req, res) => {
       
       query.floristeria = f._id;
       console.log('✅ Floristería encontrada, ID:', f._id);
+    }
+
+    // ✅ AGREGADO: Filtro por categoría si se especifica
+    if (categoria) {
+      query.categoria = categoria;
+      console.log('🔍 Filtrando por categoría:', categoria);
     }
 
     console.log('🔍 Query final:', JSON.stringify(query));
@@ -237,7 +251,6 @@ const updateFlor = async (req, res) => {
 };
 
 // DELETE /api/flores/:id
-// DELETE /api/flores/:id
 const deleteFlor = async (req, res) => {
   try {
     console.log('🗑️ Intentando eliminar producto:', req.params.id);
@@ -268,6 +281,7 @@ const deleteFlor = async (req, res) => {
     });
   }
 };
+
 // Exportar todas las funciones
 module.exports = {
   getAllFlores,
