@@ -1,0 +1,101 @@
+const axios = require('axios');
+
+// Controlador para Wompi - SOLO ARCHIVO NUEVO
+class WompiController {
+  async testConnection(req, res) {
+    try {
+      console.log('🧪 Probando conexión con Wompi...');
+      
+      const response = await axios.post('https://id.wompi.sv/connect/token', 
+        new URLSearchParams({
+          grant_type: 'client_credentials',
+          client_id: 'c9ba55f7-c614-4a74-8e54-0c5e00d376d0',
+          client_secret: 'bc6c4920-1da5-4ea5-b7db-12e9de63237c',
+          audience: 'wompi_api'
+        }), {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          }
+        }
+      );
+
+      res.json({
+        success: true,
+        message: 'Conexión con Wompi funcionando correctamente',
+        token_type: 'Bearer',
+        expires_in: 3600
+      });
+      
+    } catch (error) {
+      console.error('❌ Error en prueba de conexión:', error.message);
+      res.status(500).json({
+        success: false,
+        error: error.message || 'Error en prueba de conexión'
+      });
+    }
+  }
+
+  async createPaymentLink(req, res) {
+    try {
+      console.log('🔗 Creando enlace de pago en Wompi...');
+      
+      const { amount_in_cents, currency, reference, customer_email, expires_at } = req.body;
+      
+      // Validar datos requeridos
+      if (!amount_in_cents || !currency || !reference || !customer_email) {
+        return res.status(400).json({
+          success: false,
+          error: 'Faltan datos requeridos: amount_in_cents, currency, reference, customer_email'
+        });
+      }
+      
+      // Obtener token de acceso
+      const authResponse = await axios.post('https://id.wompi.sv/connect/token', 
+        new URLSearchParams({
+          grant_type: 'client_credentials',
+          client_id: 'c9ba55f7-c614-4a74-8e54-0c5e00d376d0',
+          client_secret: 'bc6c4920-1da5-4ea5-b7db-12e9de63237c',
+          audience: 'wompi_api'
+        }), {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          }
+        }
+      );
+
+      const accessToken = authResponse.data.access_token;
+      
+      // Crear enlace de pago
+      const paymentResponse = await axios.post('https://api.wompi.sv/payment_links', {
+        amount_in_cents,
+        currency,
+        reference,
+        customer_email,
+        expires_at: expires_at || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        redirect_url: 'https://tienda-navidenau.vercel.app/checkout/success'
+      }, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`
+        }
+      });
+
+      console.log('✅ Enlace de pago creado exitosamente:', paymentResponse.data);
+      
+      res.json({
+        success: true,
+        payment_url: paymentResponse.data.permalink || paymentResponse.data.payment_url,
+        transaction_id: paymentResponse.data.id
+      });
+      
+    } catch (error) {
+      console.error('❌ Error creando enlace de pago:', error.response?.data || error.message);
+      res.status(500).json({
+        success: false,
+        error: error.message || 'Error interno del servidor'
+      });
+    }
+  }
+}
+
+module.exports = new WompiController();

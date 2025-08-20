@@ -11,6 +11,7 @@ const authRoutes = require('./routes/auth.routes');
 const categoriaRoutes = require('./routes/categorias'); // ← require, no import
 const healthRoutes = require('./routes/health');
 const { swaggerUi, swaggerSpec } = require('./swagger');
+const wompiRoutes = require('./routes/wompi.routes');
 
 // Cargar variables de entorno desde .env
 dotenv.config({ path: path.join(__dirname, '../.env') });
@@ -44,7 +45,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.get('/', (req, res) => {
   res.send('API Tienda Navideña en funcionamiento');
 });
-
+app.use('/api/wompi', wompiRoutes);
 // Iniciar servidor
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
