@@ -65,8 +65,8 @@ class WompiController {
 
             const accessToken = authResponse.data.access_token;
 
-            // Crear enlace de pago - ACTUALIZADO para usar /crear
-            const paymentResponse = await axios.post('https://api.wompi.sv/EnlacePago/crear', {
+            // Crear enlace de pago - VOLVER AL ENDPOINT PRINCIPAL
+            const paymentResponse = await axios.post('https://api.wompi.sv/EnlacePago', {
                 amount_in_cents,
                 currency,
                 reference,
@@ -102,7 +102,7 @@ class WompiController {
 
     async debugWompi(req, res) {
         try {
-            console.log('🔍 Debug: Probando endpoint /crear con Wompi...');
+            console.log('🔍 Debug: Probando endpoint principal con Wompi...');
 
             // Obtener token de acceso
             const authResponse = await axios.post('https://id.wompi.sv/connect/token',
@@ -121,7 +121,7 @@ class WompiController {
             const accessToken = authResponse.data.access_token;
             console.log('✅ Token obtenido:', accessToken);
 
-            // Probar endpoint /crear con parámetros específicos
+            // Probar endpoint principal con parámetros específicos
             const testData = {
                 nombre: 'Producto de Prueba',
                 identificador: 'test_123',
@@ -132,9 +132,9 @@ class WompiController {
                 url_redireccion: 'https://tienda-navidenau.vercel.app/'
             };
 
-            console.log('🧪 Probando endpoint /crear:', testData);
+            console.log('🧪 Probando endpoint principal:', testData);
 
-            const response = await axios.post('https://api.wompi.sv/EnlacePago/crear', testData, {
+            const response = await axios.post('https://api.wompi.sv/EnlacePago', testData, {
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${accessToken}`
@@ -145,7 +145,7 @@ class WompiController {
 
             res.json({
                 success: true,
-                message: 'Debug exitoso con /crear',
+                message: 'Debug exitoso con endpoint principal',
                 data: response.data
             });
 
