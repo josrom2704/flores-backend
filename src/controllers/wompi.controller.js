@@ -72,7 +72,10 @@ class WompiController {
         reference,
         customer_email,
         expires_at: expires_at || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-        redirect_url: 'https://tienda-navidenau.vercel.app/'
+        redirect_url: 'https://tienda-navidenau.vercel.app/',
+        // CAMPOS OBLIGATORIOS AGREGADOS:
+        nombre: `Pedido ${reference}`,
+        identificador: `link_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
       }, {
         headers: {
           'Content-Type': 'application/json',
