@@ -123,19 +123,18 @@ class WompiController {
       
       // Probar diferentes formatos
       const testData = {
-        // Formato 2: Nombres más específicos
-        nombre_producto: 'Producto de Prueba',
-        id_enlace: 'test_123',
-        monto: 100,
-        moneda: 'USD',
-        referencia: 'TEST_REF',
-        email: 'test@test.com',
-        url_redireccion: 'https://tienda-navidenau.vercel.app/'
+        name: 'Producto de Prueba',
+        amount_in_cents: 10000,
+        currency: 'USD',
+        reference: 'TEST_REF',
+        customer_email: 'test@test.com',
+        redirect_url: 'https://tienda-navidenau.vercel.app/',
+        single_use: true
       };
       
-      console.log(' Probando formato 1:', testData);
+      console.log(' Probando formato :', testData);
       
-      const response = await axios.post('https://api.wompi.sv/EnlacePago', testData, {
+      const response = await axios.post('https://api.wompi.sv/v1/payment_links', testData, {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${accessToken}`
