@@ -158,6 +158,68 @@ class WompiController {
       });
     }
   }
+
+  async exploreWompi(req, res) {
+    try {
+      console.log('🔍 Explorando endpoints disponibles de Wompi...');
+      
+      // Obtener token de acceso
+      const authResponse = await axios.post('https://id.wompi.sv/connect/token', 
+        new URLSearchParams({
+          grant_type: 'client_credentials',
+          client_id: 'c9ba55f7-c614-4a74-8e54-0c5e00d376d0',
+          client_secret: 'bc6c4920-1da5-4ea5-b7db-12e9de63237c',
+          audience: 'wompi_api'
+        }), {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          }
+        }
+      );
+
+      const accessToken = authResponse.data.access_token;
+      
+      // Probar diferentes endpoints posibles
+      const endpoints = [
+        'https://api.wompi.sv/EnlacePago',
+        'https://api.wompi.sv/v1/payment_links',
+        'https://api.wompi.sv/payment_links',
+        'https://api.wompi.sv/enlaces',
+        'https://api.wompi.sv/links'
+      ];
+      
+      const results = {};
+      
+      for (const endpoint of endpoints) {
+        try {
+          console.log(`🧪 Probando: ${endpoint}`);
+          const response = await axios.get(endpoint, {
+            headers: {
+              'Authorization': `Bearer ${accessToken}`
+            }
+          });
+          results[endpoint] = { status: response.status, data: response.data };
+        } catch (error) {
+          results[endpoint] = { status: error.response?.status, error: error.message };
+        }
+      }
+      
+      console.log('✅ Resultados de exploración:', results);
+      
+      res.json({
+        success: true,
+        message: 'Exploración completada',
+        results: results
+      });
+      
+    } catch (error) {
+      console.error('❌ Error en exploración:', error.message);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
 }
 
 module.exports = new WompiController();

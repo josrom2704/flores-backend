@@ -11,6 +11,8 @@ router.post('/create-payment', wompiController.createPaymentLink);
 
 router.get('/debug', wompiController.debugWompi);
 
+router.get('/explore', wompiController.exploreWompi);
+
 // Ruta de estado del API
 router.get('/health', (req, res) => {
   res.json({
