@@ -65,17 +65,16 @@ class WompiController {
 
             const accessToken = authResponse.data.access_token;
 
-            // Crear enlace de pago - VOLVER AL ENDPOINT PRINCIPAL
+            // Crear enlace de pago - CAMPOS CORREGIDOS SEGÚN DOCUMENTACIÓN
             const paymentResponse = await axios.post('https://api.wompi.sv/EnlacePago', {
-                amount_in_cents,
-                currency,
-                reference,
-                customer_email,
-                expires_at: expires_at || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-                redirect_url: 'https://tienda-navidenau.vercel.app/',
-                // CAMPOS OBLIGATORIOS AGREGADOS:
-                nombre: `Pedido ${reference}`,
-                identificador: `link_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+                // CAMPOS OBLIGATORIOS CORREGIDOS:
+                identificadorEnlaceComercio: `link_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                monto: amount_in_cents / 100, // Convertir centavos a dólares
+                nombreProducto: `Pedido ${reference}`,
+                // CAMPOS OPCIONALES:
+                referencia: reference,
+                email: customer_email,
+                urlRedirect: 'https://tienda-navidenau.vercel.app/'
             }, {
                 headers: {
                     'Content-Type': 'application/json',
@@ -87,8 +86,8 @@ class WompiController {
 
             res.json({
                 success: true,
-                payment_url: paymentResponse.data.permalink || paymentResponse.data.payment_url,
-                transaction_id: paymentResponse.data.id
+                payment_url: paymentResponse.data.urlEnlace || paymentResponse.data.permalink,
+                transaction_id: paymentResponse.data.idEnlace
             });
 
         } catch (error) {
@@ -102,7 +101,7 @@ class WompiController {
 
     async debugWompi(req, res) {
         try {
-            console.log('🔍 Debug: Probando endpoint principal con Wompi...');
+            console.log('🔍 Debug: Probando campos CORREGIDOS con Wompi...');
 
             // Obtener token de acceso
             const authResponse = await axios.post('https://id.wompi.sv/connect/token',
@@ -121,18 +120,14 @@ class WompiController {
             const accessToken = authResponse.data.access_token;
             console.log('✅ Token obtenido:', accessToken);
 
-            // Probar endpoint principal con parámetros específicos
+            // Probar con campos CORREGIDOS según documentación oficial
             const testData = {
-                nombre: 'Producto de Prueba',
-                identificador: 'test_123',
-                monto: 100,
-                moneda: 'USD',
-                referencia: 'TEST_REF',
-                email: 'test@test.com',
-                url_redireccion: 'https://tienda-navidenau.vercel.app/'
+                identificadorEnlaceComercio: 'test_123',
+                monto: 100.00,
+                nombreProducto: 'Producto de Prueba'
             };
 
-            console.log('🧪 Probando endpoint principal:', testData);
+            console.log('🧪 Probando campos CORREGIDOS:', testData);
 
             const response = await axios.post('https://api.wompi.sv/EnlacePago', testData, {
                 headers: {
@@ -145,7 +140,7 @@ class WompiController {
 
             res.json({
                 success: true,
-                message: 'Debug exitoso con endpoint principal',
+                message: 'Debug exitoso con campos CORREGIDOS',
                 data: response.data
             });
 
