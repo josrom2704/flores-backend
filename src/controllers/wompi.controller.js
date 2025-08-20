@@ -66,7 +66,7 @@ class WompiController {
       const accessToken = authResponse.data.access_token;
       
       // Crear enlace de pago
-      const paymentResponse = await axios.post('https://api.wompi.sv/payment_links', {
+      const paymentResponse = await axios.post('https://api.wompi.sv/v1/payment_links', {
         amount_in_cents,
         currency,
         reference,
