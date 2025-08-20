@@ -99,6 +99,66 @@ class WompiController {
       });
     }
   }
+
+  async debugWompi(req, res) {
+    try {
+      console.log('🔍 Debug: Probando diferentes formatos con Wompi...');
+      
+      // Obtener token de acceso
+      const authResponse = await axios.post('https://id.wompi.sv/connect/token', 
+        new URLSearchParams({
+          grant_type: 'client_credentials',
+          client_id: 'c9ba55f7-c614-4a74-8e54-0c5e00d376d0',
+          client_secret: 'bc6c4920-1da5-4ea5-b7db-12e9de63237c',
+          audience: 'wompi_api'
+        }), {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          }
+        }
+      );
+
+      const accessToken = authResponse.data.access_token;
+      console.log('✅ Token obtenido:', accessToken);
+      
+      // Probar diferentes formatos
+      const testData = {
+        // Formato 1: Campos en español
+        nombre: 'Producto de Prueba',
+        identificador: 'test_123',
+        monto: 100,
+        moneda: 'USD',
+        referencia: 'TEST_REF',
+        email: 'test@test.com',
+        url_redireccion: 'https://tienda-navidenau.vercel.app/'
+      };
+      
+      console.log(' Probando formato 1:', testData);
+      
+      const response = await axios.post('https://api.wompi.sv/EnlacePago', testData, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`
+        }
+      });
+
+      console.log('✅ Respuesta exitosa:', response.data);
+      
+      res.json({
+        success: true,
+        message: 'Debug exitoso',
+        data: response.data
+      });
+      
+    } catch (error) {
+      console.error('❌ Error en debug:', error.response?.data || error.message);
+      res.status(500).json({
+        success: false,
+        error: error.response?.data || error.message,
+        message: 'Error en debug - revisar logs'
+      });
+    }
+  }
 }
 
 module.exports = new WompiController();
