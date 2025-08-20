@@ -182,10 +182,14 @@ class WompiController {
       // Probar diferentes endpoints posibles
       const endpoints = [
         'https://api.wompi.sv/EnlacePago',
-        'https://api.wompi.sv/v1/payment_links',
-        'https://api.wompi.sv/payment_links',
-        'https://api.wompi.sv/enlaces',
-        'https://api.wompi.sv/links'
+  'https://api.wompi.sv/EnlacePago/crear',  // ← NUEVO
+  'https://api.wompi.sv/EnlacePago/create', // ← NUEVO
+  'https://api.wompi.sv/crear-enlace',      // ← NUEVO
+  'https://api.wompi.sv/create-link',       // ← NUEVO
+  'https://api.wompi.sv/v1/payment_links',
+  'https://api.wompi.sv/payment_links',
+  'https://api.wompi.sv/enlaces',
+  'https://api.wompi.sv/links'
       ];
       
       const results = {};
