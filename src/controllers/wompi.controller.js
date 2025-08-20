@@ -123,9 +123,9 @@ class WompiController {
       
       // Probar diferentes formatos
       const testData = {
-        // Formato 1: Campos en español
-        nombre: 'Producto de Prueba',
-        identificador: 'test_123',
+        // Formato 2: Nombres más específicos
+        nombre_producto: 'Producto de Prueba',
+        id_enlace: 'test_123',
         monto: 100,
         moneda: 'USD',
         referencia: 'TEST_REF',
