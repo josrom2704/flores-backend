@@ -21,8 +21,14 @@ const mongoose = require('mongoose');
  *           description: Ruta de la imagen almacenada
  *         stock:
  *           type: integer
+ *         categorias:
+ *           type: array
+ *           items:
+ *             type: string
+ *           description: Array de IDs de categorías
  *         categoria:
  *           type: string
+ *           description: Categoría única (compatibilidad hacia atrás)
  *         createdAt:
  *           type: string
  *           format: date-time
@@ -33,7 +39,7 @@ const mongoose = require('mongoose');
 
 /**
  * Definición del esquema para una Flor.
- * Incluye campos básicos como nombre, descripción, precio, imagen, stock y categoría.
+ * Incluye campos básicos como nombre, descripción, precio, imagen, stock y categorías múltiples.
  * `timestamps: true` agrega automáticamente createdAt y updatedAt.
  */
 const FlowerSchema = new mongoose.Schema(
@@ -43,7 +49,17 @@ const FlowerSchema = new mongoose.Schema(
     precio: { type: Number, required: true },
     imagen: { type: String },
     stock: { type: Number, required: true, default: 0 },
+    
+    // ✨ NUEVO: Categorías múltiples como array de ObjectIds
+    categorias: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Categoria',
+      required: false
+    }],
+    
+    // ✅ MANTENIDO: Categoría única para compatibilidad hacia atrás
     categoria: { type: String },
+    
     // Referencia a la floristería a la que pertenece el producto. Este campo es
     // obligatorio para poder asociar los arreglos con una tienda determinada.
     floristeria: {
