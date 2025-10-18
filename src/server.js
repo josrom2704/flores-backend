@@ -8,7 +8,7 @@ const flowerRoutes = require('./routes/flower.routes');
 const floristeriaRoutes = require('./routes/floristeria.routes');
 const userRoutes = require('./routes/user.routes');
 const authRoutes = require('./routes/auth.routes');
-const categoriaRoutes = require('./routes/categorias'); // ← require, no import
+const categoriaRoutes = require('./routes/categorias');
 const healthRoutes = require('./routes/health');
 const { swaggerUi, swaggerSpec } = require('./swagger');
 const wompiRoutes = require('./routes/wompi.routes');
@@ -27,9 +27,6 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// ❌ ELIMINADO: app.use('/uploads', express.static(...));
-// ✅ Las imágenes se servirán desde Cloudinary
-
 // Rutas
 app.use('/api/flores', flowerRoutes);
 app.use('/api/floristerias', floristeriaRoutes);
@@ -37,6 +34,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/categorias', categoriaRoutes);
 app.use('/health', healthRoutes);
+app.use('/api/wompi', wompiRoutes); // ✅ MOVIDO AQUÍ
 
 // Documentación Swagger
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
@@ -45,7 +43,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.get('/', (req, res) => {
   res.send('API Tienda Navideña en funcionamiento');
 });
-app.use('/api/wompi', wompiRoutes);
+
 // Iniciar servidor
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {

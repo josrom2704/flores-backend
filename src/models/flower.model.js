@@ -63,7 +63,8 @@ const FlowerSchema = new mongoose.Schema(
     // Referencia a la floristería a la que pertenece el producto. Este campo es
     // obligatorio para poder asociar los arreglos con una tienda determinada.
     floristeria: {
-      type: String,  // ✅ CAMBIADO: de ObjectId a String
+      type: mongoose.Schema.Types.ObjectId,  // ✅ CAMBIADO: de String a ObjectId
+      ref: 'Floristeria',                    // ✅ AGREGADO: Referencia al modelo
       required: true
     }
   },
@@ -72,4 +73,4 @@ const FlowerSchema = new mongoose.Schema(
   }
 );
 
-module.exports = mongoose.model('Flor', FlowerSchema, 'flores'); // ✅ AGREGADO: 'flores' como tercer parámetro
+module.exports = mongoose.model('Flor', FlowerSchema, 'flores');
