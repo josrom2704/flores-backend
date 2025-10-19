@@ -4,7 +4,7 @@ const mongoose = require('mongoose');
 const fs = require('fs');
 const Flor = require('../models/flower.model');
 const Floristeria = require('../models/floristeria.model');
-const Categoria = require('../models/Categoria'); // ✅ AGREGADO: Importar modelo Categoria
+const Categoria = require('../models/categoria.model'); // ✅ AGREGADO: Importar modelo Categoria
 const cloudinary = require('../config/cloudinary');
 
 /** Normaliza rutas de archivo (Windows \ -> /) */
