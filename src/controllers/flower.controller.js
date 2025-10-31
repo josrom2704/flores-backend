@@ -4,7 +4,7 @@ const mongoose = require('mongoose');
 const fs = require('fs');
 const Flor = require('../models/flower.model');
 const Floristeria = require('../models/floristeria.model');
-const Categoria = require('../models/Categoria'); // ✅ AGREGADO: Importar modelo Categoria
+const Categoria = require('../models/Categoria');
 const cloudinary = require('../config/cloudinary');
 
 /** Normaliza rutas de archivo (Windows \ -> /) */
@@ -23,206 +23,178 @@ function slugify(str = '') {
 }
 
 /**
- * Función auxiliar para subir imagen a Cloudinary
- * ✅ CORREGIDA: Ahora funciona con memoryStorage (buffer)
+ * Sube imagen a Cloudinary usando buffer (memoryStorage)
  */
 async function uploadToCloudinary(fileBuffer, folder = 'tienda-flores') {
   try {
-    console.log('☁️ Subiendo imagen a Cloudinary...');
-    console.log('📁 Tamaño del buffer:', fileBuffer.length, 'bytes');
-    
     return new Promise((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
         {
-          folder: folder,
+          folder,
           transformation: [
             { width: 800, height: 600, crop: 'limit' },
             { quality: 'auto' }
           ]
         },
         (error, result) => {
-          if (error) {
-            console.error('❌ Error subiendo a Cloudinary:', error);
-            reject(error);
-          } else {
-            console.log('✅ Imagen subida exitosamente');
-            console.log('�� URL:', result.secure_url);
-            resolve(result.secure_url);
-          }
+          if (error) return reject(error);
+          resolve(result.secure_url);
         }
       );
-      
       uploadStream.end(fileBuffer);
     });
   } catch (error) {
-    console.error('❌ Error subiendo a Cloudinary:', error);
+    console.error('Error subiendo a Cloudinary:', error);
     throw error;
   }
 }
 
 /**
- * Función auxiliar para limpiar archivo temporal
- * ✅ CORREGIDA: Ya no es necesaria con memoryStorage
+ * Ya no es necesaria con memoryStorage, se deja por compatibilidad
  */
-function cleanupTempFile(filePath) {
-  // ✅ Ya no es necesaria con memoryStorage
-  // Los archivos se procesan en memoria y se eliminan automáticamente
-  console.log('ℹ️ No es necesario limpiar archivos temporales con memoryStorage');
+function cleanupTempFile(_filePath) {
+  // No-op
 }
 
 /**
- * ✅ NUEVA FUNCIÓN: Validar y procesar categorías
+ * Valida y procesa categorías:
+ * - Acepta: array|string, múltiples campos de FormData
+ * - Interpreta ObjectIds válidos directamente
+ * - Soporta strings tipo '["<id>"]' y extrae el id
+ * - Si no es id, busca/crea por nombre en la floristería
  */
 async function processCategories(categorias, floristeriaId) {
   try {
-    if (!categorias || categorias.length === 0) {
+    if (!categorias || (Array.isArray(categorias) && categorias.length === 0)) {
       return [];
     }
 
-    console.log('�� Procesando categorías:', categorias);
-    
-    // Si categorias es un string, convertirlo a array
-    const categoriasArray = Array.isArray(categorias) ? categorias : [categorias];
-    
+    // Normalizar a array
+    let categoriasArray;
+    if (Array.isArray(categorias)) {
+      categoriasArray = categorias;
+    } else if (typeof categorias === 'string') {
+      // Puede venir como JSON, id suelto, o nombre
+      try {
+        const parsed = JSON.parse(categorias);
+        categoriasArray = Array.isArray(parsed) ? parsed : [parsed];
+      } catch {
+        categoriasArray = [categorias];
+      }
+    } else {
+      categoriasArray = [categorias];
+    }
+
     const categoriasValidas = [];
-    
+
     for (const categoria of categoriasArray) {
+      // 1) Si parece ObjectId, usarlo
+      if (mongoose.Types.ObjectId.isValid(categoria)) {
+        const oid = new mongoose.Types.ObjectId(categoria);
+        const existe = await Categoria.findById(oid);
+        if (existe && String(existe.floristeria) === String(floristeriaId)) {
+          categoriasValidas.push(oid);
+          continue;
+        }
+      }
+
+      // 2) Caso como '["<id>"]' o '"<id>"'
       if (typeof categoria === 'string') {
-        // Buscar categoría existente por nombre
+        const m = categoria.match(/^[\[\s"]*([a-f\d]{24})[\s"]*]?$/i);
+        if (m && mongoose.Types.ObjectId.isValid(m[1])) {
+          const oid = new mongoose.Types.ObjectId(m[1]);
+          const existe = await Categoria.findById(oid);
+          if (existe && String(existe.floristeria) === String(floristeriaId)) {
+            categoriasValidas.push(oid);
+            continue;
+          }
+        }
+      }
+
+      // 3) Tratar como nombre
+      if (typeof categoria === 'string' && categoria.trim().length > 0) {
+        const nombre = categoria.trim();
         let categoriaExistente = await Categoria.findOne({
-          nombre: { $regex: new RegExp(`^${categoria}$`, 'i') },
+          nombre: { $regex: new RegExp(`^${nombre}$`, 'i') },
           floristeria: floristeriaId
         });
-        
+
         if (!categoriaExistente) {
-          // Crear nueva categoría si no existe
-          categoriaExistente = new Categoria({
-            nombre: categoria,
-            slug: slugify(categoria),
-            descripcion: `Categoría ${categoria}`,
+          categoriaExistente = await Categoria.create({
+            nombre,
+            slug: slugify(nombre),
+            descripcion: `Categoría ${nombre}`,
             icono: '🌸',
             floristeria: floristeriaId
           });
-          
-          await categoriaExistente.save();
-          console.log('✅ Nueva categoría creada:', categoria);
         }
-        
+
         categoriasValidas.push(categoriaExistente._id);
-      } else if (mongoose.Types.ObjectId.isValid(categoria)) {
-        // Es un ObjectId válido
-        categoriasValidas.push(categoria);
       }
     }
-    
-    console.log('✅ Categorías procesadas:', categoriasValidas.length);
+
     return categoriasValidas;
   } catch (error) {
-    console.error('❌ Error procesando categorías:', error);
+    console.error('Error procesando categorías:', error);
     throw error;
   }
 }
 
 /**
  * GET /api/flores
- * ✅ ACTUALIZADO: Soporte para categorías múltiples
  */
 const getAllFlores = async (req, res) => {
   try {
-    console.log('�� Conectando a MongoDB...');
-    console.log(' URI de conexión:', process.env.MONGODB_URI);
-    console.log(' Base de datos actual:', mongoose.connection.db.databaseName);
-    console.log(' Colecciones disponibles:', await mongoose.connection.db.listCollections().toArray());
-    console.log('�� Modelo Flor - Nombre:', Flor.modelName);
-    console.log('🔍 Modelo Flor - Colección:', Flor.collection.name);
-    console.log('�� Modelo Flor - Base de datos:', Flor.db.name);
-    
     const { floristeriaId, url, categoria } = req.query;
     const query = {};
 
-    console.log('🔍 getAllFlores - Query params:', { floristeriaId, url, categoria });
-
-    // Resuelve floristería
+    // Resolver floristería
     if (floristeriaId) {
       query.floristeria = floristeriaId;
     } else if (url) {
-      console.log(' Buscando floristería con URL:', url);
-      console.log(' URL normalizada:', String(url).toLowerCase());
-      
-      const todasLasFloristerias = await Floristeria.find({});
-      console.log(' Todas las floristerías en la BD:', todasLasFloristerias.map(f => ({ 
-        id: f._id, 
-        nombre: f.nombre, 
-        url: f.url,
-        dominio: f.dominio
-      })));
-      
       const f = await Floristeria.findOne({
         $or: [
           { url: String(url).toLowerCase() },
           { dominio: String(url).toLowerCase() }
         ]
       });
-      
-      console.log(' Floristería encontrada:', f ? f._id : 'NO ENCONTRADA');
-      
-      if (!f) {
-        console.log('❌ No se encontró floristería para URL:', url);
-        return res.json([]);
-      }
-      
+      if (!f) return res.json([]);
       query.floristeria = f._id;
-      console.log('✅ Floristería encontrada, ID:', f._id);
     }
 
-    // ✅ ACTUALIZADO: Filtro por categoría múltiple
+    // Filtro por categoría (por nombre)
     if (categoria) {
-      // Buscar categorías que coincidan con el nombre
       const categoriasEncontradas = await Categoria.find({
         nombre: { $regex: new RegExp(categoria, 'i') }
       });
-      
+
       if (categoriasEncontradas.length > 0) {
         query.categorias = { $in: categoriasEncontradas.map(c => c._id) };
-        console.log('�� Filtrando por categorías:', categoriasEncontradas.map(c => c.nombre));
       } else {
-        // Fallback: buscar en el campo categoria (compatibilidad hacia atrás)
+        // Compatibilidad hacia atrás
         query.categoria = categoria;
-        console.log('🔍 Filtrando por categoría (fallback):', categoria);
       }
     }
 
-    console.log('🔍 Query final:', JSON.stringify(query));
-
-    const todosLosProductos = await Flor.find({});
-    console.log('🔍 TODOS los productos en la BD:', todosLosProductos.map(f => ({ 
-      id: f._id, 
-      nombre: f.nombre, 
-      floristeria: f.floristeria,
-      tipoFloristeria: typeof f.floristeria 
-    })));
-
-    // ✅ ACTUALIZADO: Populate categorías
     const flores = await Flor.find(query)
       .populate('categorias', 'nombre slug descripcion icono')
       .sort({ createdAt: -1 });
-    
-    console.log('🔍 Productos encontrados con query:', flores.length);
-    
+
     res.json(flores);
   } catch (error) {
-    console.error('❌ Error en getAllFlores:', error);
+    console.error('Error en getAllFlores:', error);
     res.status(500).json({ message: error.message });
   }
 };
 
-// GET /api/flores/:id
-// ✅ ACTUALIZADO: Populate categorías
+/**
+ * GET /api/flores/:id
+ */
 const getFlorById = async (req, res) => {
   try {
     const flor = await Flor.findById(req.params.id)
       .populate('categorias', 'nombre slug descripcion icono');
-    
+
     if (!flor) return res.status(404).json({ message: 'Flor no encontrada' });
     res.json(flor);
   } catch (error) {
@@ -230,8 +202,9 @@ const getFlorById = async (req, res) => {
   }
 };
 
-// GET /api/flores/floristeria/:floristeriaId
-// ✅ ACTUALIZADO: Populate categorías
+/**
+ * GET /api/flores/floristeria/:floristeriaId
+ */
 const getFloresByFloristeria = async (req, res) => {
   const { floristeriaId } = req.params;
   try {
@@ -244,37 +217,41 @@ const getFloresByFloristeria = async (req, res) => {
   }
 };
 
-// POST /api/flores
-// ✅ ACTUALIZADO: Soporte para categorías múltiples
+/**
+ * POST /api/flores
+ */
 const createFlor = async (req, res) => {
-  const { nombre, descripcion, precio, stock, categoria, categorias, floristeria } = req.body;
+  const { nombre, descripcion, precio, stock, categoria, floristeria } = req.body;
+
   try {
     if (!floristeria) {
       return res.status(400).json({ message: 'El campo "floristeria" es obligatorio' });
     }
 
-    let imagenUrl = undefined;
-    
-    // ✅ CORREGIDA: Subir imagen a Cloudinary si existe
+    let imagenUrl;
     if (req.file) {
       try {
         imagenUrl = await uploadToCloudinary(req.file.buffer);
-        console.log('✅ Imagen procesada y subida a Cloudinary');
       } catch (uploadError) {
-        console.error('❌ Error procesando imagen:', uploadError);
-        return res.status(500).json({ 
+        return res.status(500).json({
           message: 'Error al procesar la imagen',
-          error: uploadError.message 
+          error: uploadError.message
         });
       }
     }
 
-    // ✅ NUEVO: Procesar categorías múltiples
+    // Normalizar categorias desde multipart/form-data
+    let rawCats = req.body.categorias;
+    if (typeof rawCats === 'string') {
+      try { rawCats = JSON.parse(rawCats); } catch { rawCats = [rawCats]; }
+    }
+    if (rawCats != null && !Array.isArray(rawCats)) rawCats = [rawCats];
+
+    // Procesar categorías múltiples
     let categoriasProcesadas = [];
-    if (categorias && categorias.length > 0) {
-      categoriasProcesadas = await processCategories(categorias, floristeria);
+    if (rawCats && rawCats.length > 0) {
+      categoriasProcesadas = await processCategories(rawCats, floristeria);
     } else if (categoria) {
-      // Fallback: usar categoría única
       categoriasProcesadas = await processCategories([categoria], floristeria);
     }
 
@@ -283,95 +260,86 @@ const createFlor = async (req, res) => {
       descripcion,
       precio: Number(precio),
       stock,
-      categoria, // ✅ MANTENIDO: Para compatibilidad hacia atrás
-      categorias: categoriasProcesadas, // ✅ NUEVO: Categorías múltiples
+      categoria, // compatibilidad
+      categorias: categoriasProcesadas,
       floristeria,
-      imagen: imagenUrl,
+      imagen: imagenUrl
     });
 
     const florGuardada = await nuevaFlor.save();
-    console.log('✅ Flor creada exitosamente con imagen:', imagenUrl ? 'Sí' : 'No');
-    console.log('✅ Categorías asignadas:', categoriasProcesadas.length);
-    
-    // ✅ NUEVO: Populate categorías en la respuesta
     const florConCategorias = await Flor.findById(florGuardada._id)
       .populate('categorias', 'nombre slug descripcion icono');
-    
+
     res.status(201).json(florConCategorias);
   } catch (error) {
-    console.error('❌ Error creando flor:', error);
+    console.error('Error creando flor:', error);
     res.status(400).json({ message: error.message });
   }
 };
 
-// PUT /api/flores/:id
-// ✅ ACTUALIZADO: Soporte para categorías múltiples
+/**
+ * PUT /api/flores/:id
+ */
 const updateFlor = async (req, res) => {
   try {
     const updates = { ...req.body };
     if (updates.precio !== undefined) updates.precio = Number(updates.precio);
-    
-    // ✅ CORREGIDA: Manejar imagen en actualización
+
     if (req.file) {
       try {
         const imagenUrl = await uploadToCloudinary(req.file.buffer);
         updates.imagen = imagenUrl;
-        console.log('✅ Imagen actualizada en Cloudinary');
       } catch (uploadError) {
-        console.error('❌ Error actualizando imagen:', uploadError);
-        return res.status(500).json({ 
+        return res.status(500).json({
           message: 'Error al procesar la imagen',
-          error: uploadError.message 
+          error: uploadError.message
         });
       }
     }
 
-    // ✅ NUEVO: Procesar categorías múltiples en actualización
+    // Normalizar categorias desde multipart/form-data
     if (updates.categorias || updates.categoria) {
       const floristeriaId = updates.floristeria || (await Flor.findById(req.params.id))?.floristeria;
-      
-      if (updates.categorias) {
-        updates.categorias = await processCategories(updates.categorias, floristeriaId);
-      } else if (updates.categoria) {
-        updates.categorias = await processCategories([updates.categoria], floristeriaId);
+
+      let rawCats = updates.categorias ?? (updates.categoria ? [updates.categoria] : null);
+      if (typeof rawCats === 'string') {
+        try { rawCats = JSON.parse(rawCats); } catch { rawCats = [rawCats]; }
+      }
+      if (rawCats != null && !Array.isArray(rawCats)) rawCats = [rawCats];
+
+      if (rawCats && rawCats.length > 0) {
+        updates.categorias = await processCategories(rawCats, floristeriaId);
       }
     }
 
     const florActualizada = await Flor.findByIdAndUpdate(req.params.id, updates, {
       new: true,
-      runValidators: true,
+      runValidators: true
     });
 
     if (!florActualizada) return res.status(404).json({ message: 'Flor no encontrada' });
-    
-    // ✅ NUEVO: Populate categorías en la respuesta
+
     const florConCategorias = await Flor.findById(florActualizada._id)
       .populate('categorias', 'nombre slug descripcion icono');
-    
+
     res.json(florConCategorias);
   } catch (error) {
-    console.error('❌ Error actualizando flor:', error);
+    console.error('Error actualizando flor:', error);
     res.status(500).json({ message: error.message });
   }
 };
 
-// DELETE /api/flores/:id
-// ✅ MANTENIDO: Eliminación real
+/**
+ * DELETE /api/flores/:id
+ */
 const deleteFlor = async (req, res) => {
   try {
-    console.log('🗑️ Intentando eliminar producto:', req.params.id);
-    
     const florEliminada = await Flor.findByIdAndDelete(req.params.id);
-    
     if (!florEliminada) {
-      console.log('❌ Producto no encontrado');
       return res.status(404).json({ message: 'Flor no encontrada' });
     }
-    
-    console.log('✅ Producto eliminado realmente:', florEliminada._id);
-    console.log('✅ Nombre del producto eliminado:', florEliminada.nombre);
-    
-    res.json({ 
+
+    res.json({
       message: 'Flor eliminada correctamente',
       deletedProduct: {
         id: florEliminada._id,
@@ -379,15 +347,14 @@ const deleteFlor = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('❌ Error eliminando flor:', error);
-    res.status(500).json({ 
+    console.error('Error eliminando flor:', error);
+    res.status(500).json({
       message: 'Error al eliminar el producto',
-      error: error.message 
+      error: error.message
     });
   }
 };
 
-// Exportar todas las funciones
 module.exports = {
   getAllFlores,
   getFlorById,
